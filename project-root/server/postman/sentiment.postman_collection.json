@@ -1,0 +1,338 @@
+{
+  "info": {
+    "_postman_id": "4ae66552-a934-4c0d-a452-9ca30c233100",
+    "name": "TensorFlow.js Sentiment Middleware Course",
+    "description": "Local-only checks for the pre-trained IMDB TensorFlow.js CNN. The collection asserts the API contract, not hardcoded model accuracy or labels.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3003",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health — model is ready",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/healthz",
+        "description": "The API only listens after model loading, architecture checks, and warmup succeed."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('ready status and expected model', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.deep.equal({ status: 'ready', model: 'imdb-sentiment-cnn-v1', maxLength: 100 });",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Classify — positive review smoke test",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"text\":\"This movie was excellent, warm, and wonderfully acted.\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/classify",
+        "description": "Positive-toned review example. Validate the response shape without asserting a predicted label."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('classification response follows the score contract', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.model).to.eql('imdb-sentiment-cnn-v1');",
+              "  pm.expect(['positive', 'negative']).to.include(body.label);",
+              "  pm.expect(body.score).to.be.a('number').and.to.be.within(0, 1);",
+              "  pm.expect(body.threshold).to.eql(0.5);",
+              "  pm.expect(body.label).to.eql(body.score >= body.threshold ? 'positive' : 'negative');",
+              "  pm.expect(body.tokenCount).to.be.within(1, 100);",
+              "  pm.expect(body.oovCount).to.be.within(0, body.tokenCount);",
+              "  pm.expect(body.truncated).to.be.a('boolean');",
+              "  pm.expect(body).not.to.have.property('text');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Classify — negative review smoke test",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"text\":\"The movie was awful, dull, and painfully disappointing.\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/classify",
+        "description": "Negative-toned review example. Validate the response shape without asserting a predicted label."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('classification response follows the score contract', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.model).to.eql('imdb-sentiment-cnn-v1');",
+              "  pm.expect(['positive', 'negative']).to.include(body.label);",
+              "  pm.expect(body.score).to.be.a('number').and.to.be.within(0, 1);",
+              "  pm.expect(body.threshold).to.eql(0.5);",
+              "  pm.expect(body.label).to.eql(body.score >= body.threshold ? 'positive' : 'negative');",
+              "  pm.expect(body.tokenCount).to.be.within(1, 100);",
+              "  pm.expect(body.oovCount).to.be.within(0, body.tokenCount);",
+              "  pm.expect(body.truncated).to.be.a('boolean');",
+              "  pm.expect(body).not.to.have.property('text');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Validation — extra object field",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"text\":\"private review text\",\"extra\":true}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/classify"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('invalid shape is rejected without echoing review text', function () {",
+              "  pm.response.to.have.status(400);",
+              "  pm.expect(pm.response.text()).not.to.include('private review text');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Validation — wrong content type",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "text/plain"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"text\":\"a review\"}"
+        },
+        "url": "{{baseUrl}}/classify"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('unsupported media type is rejected', function () {",
+              "  pm.response.to.have.status(415);",
+            "  pm.expect(pm.response.json().error).to.be.a('string');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Validation — malformed JSON",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"text\":",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/classify"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('malformed JSON is rejected', function () {",
+              "  pm.response.to.have.status(400);",
+              "  pm.expect(pm.response.json().error).to.be.a('string');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Validation — all unknown words",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"text\":\"zzqvunlikelywordqvzz\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/classify"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('all-OOV input does not receive a fake prediction', function () {",
+              "  pm.response.to.have.status(422);",
+              "  pm.expect(pm.response.json().error).to.be.a('string');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Validation — body exceeds 8 KB",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{{oversizedBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/classify"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.variables.set('oversizedBody', JSON.stringify({ text: 'x'.repeat(9000) }));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('body parser enforces its size limit', function () {",
+              "  pm.response.to.have.status(413);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Routing — unknown route",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/not-a-route"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('unknown routes return JSON 404', function () {",
+              "  pm.response.to.have.status(404);",
+              "  pm.expect(pm.response.json().error).to.eql('Route not found.');",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
