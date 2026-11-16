@@ -39,10 +39,44 @@ implemented.
 - Express middleware with a real pretrained TensorFlow.js sentiment model.
 - Persistent chat, followed by **reference-only** CI/CD, Docker, Kubernetes and
   Python microservice/scaling lessons.
+- PennyLane hybrid quantum–classical regression on the same synthetic houses,
+  with train-only preprocessing, validation checkpoint selection, and classical
+  baselines.
 
 The training datasets are small instructional examples. Earlier lessons exposed
 test observations, so their results are not an independent final benchmark.
 Sentiment scores are not calibrated confidence estimates.
+
+## Quantum machine-learning lesson
+
+Lesson 29 trains a new PennyLane model; it does not convert TensorFlow.js weights.
+The verified local simulator run used 40 synthetic observations split into
+24 training, 8 validation, and 8 test rows. Validation selected epoch 54 of 60.
+
+| Model | Test MAE ($) | Test RMSE ($) |
+|---|---:|---:|
+| Training mean | 78,625.00 | 83,640.97 |
+| Linear regression | **3,840.19** | **4,383.04** |
+| Hybrid quantum–classical | 16,479.85 | 17,490.85 |
+
+Linear regression performed best on this single split. These results do not
+establish quantum advantage, statistical significance, or production performance.
+Saved output images are omitted from this clean publication; running the lesson
+produces the circuit diagram, learning curves, predictions, and residual plots.
+
+```mermaid
+flowchart LR
+    Data["Existing synthetic house data"] --> Split["Train / validation / test"]
+    Split --> Fit["Fit scaling on training rows only"]
+    Fit --> Encode["Encode house size as rotation angle"]
+    Encode --> Circuit["Two-qubit PennyLane circuit"]
+    Circuit --> Measure["Exact simulated expectation"]
+    Measure --> Head["Trainable classical regression head"]
+    Head --> Optimize["Training loss and hybrid optimization"]
+    Optimize --> Circuit
+    Head --> Select["Select checkpoint using validation"]
+    Select --> Test["Frozen test comparison with classical baselines"]
+```
 
 ## Local setup
 
